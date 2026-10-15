@@ -1,0 +1,50 @@
+{
+  "id": "d4d1ef7a1a8b4eeba0886a423623cd49",
+  "name": "Policy Catalyst Refresh",
+  "nodes": [
+    {
+      "id": "policycatalyst01",
+      "type": "task",
+      "name": "policy_tracker.py",
+      "x": 682,
+      "y": 262,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ],
+      "code": "\"\"\"Auditable public-policy catalyst collector for JEV research.\n\nThis is a research database, not a broker, signal executor, or political-trade\nrecommendation engine. Every record is kept with its primary-source URL.\n\"\"\"\nimport argparse\nimport csv\nimport hashlib\nimport json\nimport sqlite3\nimport time\nimport tempfile\nimport urllib.error\nimport urllib.request\nimport xml.etree.ElementTree as ET\nfrom html.parser import HTMLParser\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parent\nDB = ROOT / \"data\" / \"policy_catalysts.sqlite3\"\nCSV = ROOT / \"data\" / \"policy_catalysts.csv\"\nRULES = ROOT / \"policy_tracker_rules.json\"\nUSER_AGENT = \"JevPolicyTracker/1.0 research@localhost\"\n\n\ndef load_rules():\n    with RULES.open(encoding=\"utf-8\") as source:\n        data = json.load(source)\n    required = {\"sources\", \"entity_aliases\", \"tier_1_terms\", \"tier_2_terms\", \"tier_3_terms\"}\n    if set(data) != required:\n        raise ValueError(\"policy_tracker_rules.json is incomplete\")\n    return data\n\n\ndef connect(path=DB):\n    path.parent.mkdir(exist_ok=True)\n    db = sqlite3.connect(path)\n    db.row_factory = sqlite3.Row\n    return db\n\n\ndef init_db(db):\n    db.executescript(\"\"\"\n        CREATE TABLE IF NOT EXISTS policy_events (\n          event_key TEXT PRIMARY KEY, source_id TEXT NOT NULL, title TEXT NOT NULL,\n          url TEXT NOT NULL, published_at TEXT, summary TEXT NOT NULL,\n          tier INTEGER NOT NULL, category TEXT NOT NULL, fetched_at REAL NOT NULL\n        );\n        CREATE TABLE IF NOT EXISTS policy_entities (\n          event_key TEXT NOT NULL REFERENCES policy_events(event_key),\n          ticker TEXT NOT NULL, matched_alias TEXT NOT NULL,\n          PRIMARY KEY(event_key, ticker)\n        );\n        CREATE INDEX IF NOT EXISTS policy_events_fetched ON policy_events(fetched_at DESC);\n        CREATE INDEX IF NOT EXISTS policy_entities_ticker ON policy_entities(ticker);\n    \"\"\")\n\n\ndef fetch(url):\n    request = urllib.request.Request(url, headers={\"User-Agent\": USER_AGENT, \"Accept\": \"application/rss+xml,text/html\"})\n    try:\n        with urllib.request.urlopen(request, timeout=25) as response:\n            return response.read().decode(\"utf-8\", errors=\"replace\")\n    except urllib.error.HTTPError as error:\n        raise ValueError(f\"{url} returned HTTP {error.code}\") from None\n    except (urllib.error.URLError, TimeoutError):\n        raise ValueError(f\"Could not reach {url}\") from None\n\n\ndef rss_items(raw):\n    try:\n        root = ET.fromstring(raw)\n    except ET.ParseError:\n        return []\n    entries = root.findall(\".//item\") or root.findall(\".//{http://www.w3.org/2005/Atom}entry\")\n    items = []\n    for entry in entries:\n        def text(name):\n            value = entry.findtext(name) or entry.findtext(f\"{{http://www.w3.org/2005/Atom}}{name}\")\n            return value.strip() if value else \"\"\n        link = text(\"link\")\n        if not link:\n            link_node = entry.find(\"{http://www.w3.org/2005/Atom}link\")\n            link = (link_node.get(\"href\") if link_node is not None else \"\") or \"\"\n        title = text(\"title\")\n        if title and link:\n            items.append({\"title\": title, \"url\": link, \"published_at\": text(\"pubDate\") or text(\"updated\"), \"summary\": text(\"description\") or text(\"summary\")})\n    return items\n\n\nclass ReleaseLinks(HTMLParser):\n    def __init__(self):\n        super().__init__(); self.links = []; self.href = None; self.parts = []\n    def handle_starttag(self, tag, attrs):\n        if tag == \"a\":\n            self.href = dict(attrs).get(\"href\"); self.parts = []\n    def handle_data(self, data):\n        if self.href: self.parts.append(data)\n    def handle_endtag(self, tag):\n        if tag == \"a\" and self.href:\n            title = \" \".join(\"\".join(self.parts).split())\n            if title and self.href:\n                self.links.append({\"title\": title, \"url\": self.href, \"published_at\": \"\", \"summary\": title})\n            self.href = None; self.parts = []\n\n\ndef html_release_items(raw, base=\"https://www.whitehouse.gov\", link_pattern=\"/releases/\"):\n    parser = ReleaseLinks(); parser.feed(raw)\n    seen, result = set(), []\n    for item in parser.links:\n        url = item[\"url\"] if item[\"url\"].startswith(\"http\") else base.rstrip(\"/\") + \"/\" + item[\"url\"].lstrip(\"/\")\n        if link_pattern in url and url not in seen:\n            seen.add(url); item[\"url\"] = url; result.append(item)\n    return result\n\n\ndef classify(text, rules):\n    lower = text.lower()\n    if any(term in lower for term in rules[\"tier_1_terms\"]):\n        return 1, \"executed_capital_or_award\"\n    if any(term in lower for term in rules[\"tier_2_terms\"]):\n        return 2, \"binding_policy_or_permit\"\n    if any(term in lower for term in rules[\"tier_3_terms\"]):\n        return 3, \"rhetoric_or_theme\"\n    return 3, \"policy_context\"\n\n\ndef linked_entities(text, aliases):\n    lower = text.lower()\n    linked = []\n    for ticker, names in aliases.items():\n        matches = [alias for alias in names if alias.lower() in lower]\n        if matches:\n            linked.append((ticker, max(matches, key=len)))\n    return linked\n\n\ndef ingest(db, source_id, items, rules):\n    inserted = 0\n    for item in items:\n        text = f\"{item['title']} {item.get('summary', '')}\"\n        tier, category = classify(text, rules)\n        key = hashlib.sha256(f\"{source_id}|{item['url']}\".encode()).hexdigest()\n        cursor = db.execute(\"\"\"INSERT OR IGNORE INTO policy_events\n          (event_key,source_id,title,url,published_at,summary,tier,category,fetched_at)\n          VALUES (?,?,?,?,?,?,?,?,?)\"\"\", (key, source_id, item[\"title\"], item[\"url\"], item.get(\"published_at\", \"\"), item.get(\"summary\", \"\"), tier, category, time.time()))\n        inserted += cursor.rowcount\n        for ticker, alias in linked_entities(text, rules[\"entity_aliases\"]):\n            db.execute(\"INSERT OR IGNORE INTO policy_entities(event_key,ticker,matched_alias) VALUES (?,?,?)\", (key, ticker, alias))\n    return inserted\n\n\ndef refresh(rules, db):\n    added, results = 0, []\n    for source in rules[\"sources\"]:\n        try:\n            raw = fetch(source[\"url\"])\n        except ValueError as error:\n            results.append({\"source\": source[\"id\"], \"items\": 0, \"added\": 0, \"error\": str(error)})\n            continue\n        items = rss_items(raw) if source[\"kind\"] == \"rss\" else html_release_items(raw, source[\"url\"], source.get(\"link_pattern\", \"/releases/\"))\n        count = ingest(db, source[\"id\"], items, rules)\n        added += count; results.append({\"source\": source[\"id\"], \"items\": len(items), \"added\": count})\n    db.commit()\n    return {\"ok\": True, \"added\": added, \"sources\": results, \"database_path\": str(DB)}\n\n\ndef export_events(db, path=CSV):\n    \"\"\"Publish a stable flat snapshot for the dashboard without copying a live SQLite file.\"\"\"\n    rows = db.execute('''SELECT e.event_key,e.source_id,e.title,e.url,e.published_at,e.summary,\n                                e.tier,e.category,e.fetched_at,GROUP_CONCAT(p.ticker, ', ') AS tickers\n                         FROM policy_events e LEFT JOIN policy_entities p ON p.event_key=e.event_key\n                         GROUP BY e.event_key ORDER BY e.fetched_at DESC,e.title''')\n    temporary = None\n    try:\n        with tempfile.NamedTemporaryFile(mode=\"w\", encoding=\"utf-8\", newline=\"\", dir=path.parent, delete=False) as output:\n            temporary = Path(output.name)\n            writer = csv.writer(output)\n            writer.writerow(column[0] for column in rows.description)\n            writer.writerows(rows)\n        temporary.chmod(0o644)\n        temporary.replace(path)\n    finally:\n        if temporary is not None:\n            temporary.unlink(missing_ok=True)\n\n\ndef main():\n    parser = argparse.ArgumentParser(description=\"Refresh JEV's public-policy catalyst research database.\")\n    parser.add_argument(\"--refresh\", action=\"store_true\", help=\"accepted for compatibility; refresh is always performed\")\n    args = parser.parse_args(); rules = load_rules()\n    with connect() as db:\n        init_db(db)\n        result = refresh(rules, db)\n        export_events(db)\n        result[\"csv_path\"] = str(CSV)\n    print(json.dumps(result, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()\n",
+      "task": {
+        "scriptPath": "policy_tracker.py",
+        "workingDirectory": ".",
+        "pythonExecutable": "venv/bin/python",
+        "usesDetectedVenv": true,
+        "kind": "python-script"
+      }
+    }
+  ],
+  "edges": [],
+  "recurring": {
+    "enabled": false,
+    "scheduleMode": "dailyTime",
+    "frequencySeconds": 1800,
+    "timeOfDay": "01:00",
+    "weekdays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "nextRunAt": null,
+    "displayMode": "silent"
+  },
+  "favorite": true,
+  "active": false,
+  "activeOrder": 0,
+  "storage": {
+    "version": 2,
+    "root": "data/workflows/policy-catalyst-refresh-d4d1ef7a"
+  }
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=Automated Workflow dev server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__PROJECT_DIR__
+ExecStart=__PROJECT_DIR__/venv/bin/python -m automated_workflow --host 0.0.0.0 --port 8787
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-__PROJECT_DIR__/.env
+
+[Install]
+WantedBy=default.target

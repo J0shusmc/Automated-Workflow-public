@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stockdb"
+version = "0.1.0"
+description = "Centralized market data infrastructure powered by Polygon.io"
+requires-python = ">=3.10"
+dependencies = [
+    "polygon-api-client>=1.13",
+    "pandas>=2.0",
+    "python-dotenv>=1.0",
+    "click>=8.0",
+    "tqdm>=4.60",
+    "requests>=2.28",
+    "rich>=13.0",
+    "tzdata>=2025.2",
+    "yfinance>=0.2",
+]
+
+[project.scripts]
+stockdb = "stockdb.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["stockdb*"]

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Automated Workflow</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand"><span class="brand-mark">✦</span> Automated Workflow</div>
+      <nav id="main-menu" aria-label="Application menu">
+        <div class="menu-group"><button class="menu-trigger">File</button><div class="menu-popover"><button id="menu-new">New workflow <kbd>⌘ N</kbd></button><button id="menu-save">Save workflow <kbd>⌘ S</kbd></button></div></div>
+        <div class="menu-group"><button class="menu-trigger">Create</button><div class="menu-popover"><button id="menu-file">＋ Data file</button><button id="menu-product">＋ Product folders</button><button id="menu-task">＋ Add Python Script <kbd>from file</kbd></button><button id="menu-python">＋ Code node</button></div></div>
+        <div class="menu-group"><button class="menu-trigger">View</button><div class="menu-popover"><button id="menu-inspector">Show node inspector</button><button id="menu-workflows">Show workflows</button><button id="menu-terminal">Show terminal</button></div></div>
+      </nav>
+      <input id="workflow-name" aria-label="Workflow name" value="Untitled workflow" />
+      <div class="header-actions"><span id="save-state">Not saved</span><button id="save">Save</button><button id="run" class="run">▶ Run workflow</button></div>
+    </header>
+    <main id="app-layout" class="inspector-closed workflow-sidebar-closed">
+      <section id="workflow-drawer" aria-label="Workflow history">
+        <button id="workflow-drawer-toggle" aria-expanded="false"><span><span class="drawer-chevron">‹</span><span class="drawer-label">WORKFLOWS</span><b id="workflow-count">0</b></span></button>
+        <div id="workflow-list"></div>
+      </section>
+      <section class="workspace">
+        <div class="toolbar"><button id="add-node">＋ Code node</button><button id="show-inspector">☰ Inspector</button><button id="reset-view">Reset view</button><span>Drag nodes · connect output to input</span></div>
+        <button id="canvas-add" title="Create node">＋</button>
+        <aside id="claudia-dock" aria-label="Claudia command node">
+          <div><strong>Claudia</strong></div>
+          <button id="claudia-menu-button" title="Claudia actions">⋮</button>
+        </aside>
+        <aside id="codex-dock" aria-label="Codex command node">
+          <div><strong>Codex</strong></div>
+          <button id="codex-menu-button" title="Codex actions">⋮</button>
+        </aside>
+        <div id="canvas" aria-label="Workflow canvas"><div id="canvas-world"><svg id="connections"></svg><div id="empty-state"><strong>Start your workflow</strong><button id="empty-add">＋ Start a new project</button></div><div id="start-create" hidden><p>START WITH</p><button data-start-kind="input"><span>↳</span><span><b>User input</b><small>Enter a prompt or workflow value</small></span></button><button data-start-kind="file"><span>▤</span><span><b>Data file</b><small>Choose CSV or text from data</small></span></button><button data-start-kind="product"><span>▣</span><span><b>Product folders</b><small>Choose a ForSale folder</small></span></button><button data-start-kind="agent"><span>✦</span><span><b>Spawn Agent</b><small>Create a draft specialist agent</small></span></button><button data-start-kind="task"><span>⌘</span><span><b>Python Script</b><small>Choose a local Python file to run</small></span></button></div></div></div>
+        <section id="bottom-service-panel" aria-label="Workflow services and terminal">
+          <section id="active-workflow-drawer" aria-label="Active workflows">
+            <button id="active-workflow-toggle" aria-expanded="true"><span><span class="active-drawer-chevron">⌄</span> ACTIVE WORKFLOWS <b id="active-workflow-count">0</b></span></button>
+            <div id="active-workflow-list"></div>
+          </section>
+          <section id="terminal" hidden><div class="terminal-head"><span><i></i> FUNCTION TERMINAL</span><button id="close-terminal">×</button></div><pre id="terminal-output"></pre><form id="terminal-input-form"><span>›</span><input id="terminal-input" autocomplete="off" spellcheck="false" placeholder="Send input to active session" /></form></section>
+          <section id="llm-activity" hidden><div class="llm-activity-head"><span><i></i> LLM ACTIVITY</span><button id="close-llm-activity">×</button></div><div id="llm-activity-summary">ready</div><div id="llm-activity-stream"></div></section>
+        </section>
+      </section>
+      <section id="inspector">
+        <div class="inspector-head"><span>NODE</span><button id="close-inspector">×</button></div>
+        <div id="inspector-empty">Select a node to edit its code and ports.</div>
+        <form id="node-form" hidden>
+          <label>Name<input id="node-name" /></label>
+          <label id="node-inputs-label">Inputs <small>comma-separated</small><input id="node-inputs" placeholder="prompt, style" /></label>
+          <label id="node-outputs-label">Outputs <small>comma-separated</small><input id="node-outputs" placeholder="image_url" /></label>
+          <label id="code-label">Python code</label><textarea id="node-code" spellcheck="false"></textarea>
+          <div id="task-details" hidden></div>
+          <p class="hint">Linked values arrive in <code>inputs</code>. Set <code>result</code> to a JSON-compatible value or dictionary.</p>
+          <button type="button" id="delete-node" class="danger">Delete node</button>
+        </form>
+        <div id="run-panel"></div>
+      </section>
+    </main>
+    <div id="quick-create" hidden><p>ADD NEXT STEP</p><button data-kind="link"><span>⛓</span><span><b>Link existing node</b><small>Connect this node to a node already on the desktop</small></span></button><button data-kind="condition"><span>?</span><span><b>If / Or branch</b><small>Route by matching the previous output text</small></span></button><button data-kind="file"><span>▤</span><span><b>Data file</b><small>Choose CSV or text from data</small></span></button><button data-kind="product"><span>▣</span><span><b>Product folders</b><small>Choose a ForSale folder</small></span></button><button data-kind="agent"><span>✦</span><span><b>Spawn Agent</b><small>Create and link a draft specialist agent</small></span></button><button data-kind="kill-claudia"><span>■</span><span><b>Kill Claudia LLM</b><small>Free VRAM before the next step</small></span></button><button data-kind="input"><span>↳</span><span><b>User input</b><small>Pass a prompt or value</small></span></button><button data-kind="task"><span>⌘</span><span><b>Python Script</b><small>Choose a local Python file to run</small></span></button><button data-kind="output"><span>◉</span><span><b>Output display</b><small>Show the value passing through</small></span></button></div>
+    <div id="canvas-create" hidden><p>CREATE NODE</p><button data-create-kind="workflow"><span>□</span><span><b>New workflow</b><small>Save this workflow and start fresh</small></span></button><button data-create-kind="agent"><span>✦</span><span><b>Spawn Agent</b><small>Create a draft specialist agent</small></span></button><button data-create-kind="condition"><span>?</span><span><b>If / Or branch</b><small>Standalone conditional router</small></span></button><button data-create-kind="file"><span>▤</span><span><b>Data file</b><small>Standalone CSV/text selector</small></span></button><button data-create-kind="product"><span>▣</span><span><b>Product folders</b><small>Standalone ForSale selector</small></span></button><button data-create-kind="kill-claudia"><span>■</span><span><b>Kill Claudia LLM</b><small>Free VRAM with pkill</small></span></button><button data-create-kind="input"><span>↳</span><span><b>User input</b><small>Standalone prompt/input node</small></span></button><button data-create-kind="breakpoint"><span>Ⅱ</span><span><b>Workflow Break</b><small>Cache output and resume later</small></span></button><button data-create-kind="task"><span>⌘</span><span><b>Python Script</b><small>Choose a local Python file to run</small></span></button><button data-create-kind="output"><span>◉</span><span><b>Output display</b><small>Standalone pass-through display</small></span></button><button data-create-kind="code"><span>⌘</span><span><b>Code node</b><small>Standalone Python cell</small></span></button></div>
+    <div id="claudia-menu" hidden><p>CLAUDIA</p><button data-claudia-action="spawn-agent"><span>✦</span><span><b>Spawn Agent</b><small>Describe what the agent should do</small></span></button><button data-claudia-action="create-script"><span>⌘</span><span><b>Create Script</b><small>Generate a local Python project</small></span></button><button data-claudia-action="start-llm"><span>▶</span><span><b>Start LLM</b><small>Start the local llama-server service</small></span></button><button data-claudia-action="stop-llm"><span>■</span><span><b>Stop LLM</b><small>Stop the qwen3-vl llama-server process</small></span></button><button data-claudia-action="delete-agent" class="danger-action"><span>×</span><span><b>Delete agent</b><small>Delete selected or newest agent node</small></span></button></div>
+    <div id="codex-menu" hidden><p>CODEX</p><button data-codex-action="workflow-terminal"><span>▣</span><span><b>Workflow Terminal</b><small>Open Codex on this dashboard project</small></span></button><button data-codex-action="spawn-agent"><span>✦</span><span><b>Spawn Agent</b><small>Describe what the agent should do</small></span></button><button data-codex-action="create-script"><span>⌘</span><span><b>Create Script</b><small>Start a Codex-backed project folder</small></span></button><button data-codex-action="start-llm"><span>▶</span><span><b>Start LLM</b><small>Start the local llama-server service</small></span></button><button data-codex-action="stop-llm"><span>■</span><span><b>Stop LLM</b><small>Stop the qwen3-vl llama-server process</small></span></button><button data-codex-action="delete-agent" class="danger-action"><span>×</span><span><b>Delete agent</b><small>Delete selected or newest agent node</small></span></button></div>
+    <div id="node-menu" hidden><p>NODE MENU</p><button data-node-action="rename"><span>✎</span><span><b>Rename</b><small>Change this node header</small></span></button><button data-node-action="build-agent"><span>✦</span><span><b>Build with Claudia</b><small>Turn the brief into an agent prompt</small></span></button><button data-node-action="clear-breakpoint"><span>↺</span><span><b>Clear saved break</b><small>Regenerate this workflow section</small></span></button><button data-node-action="edit-local-llm"><span>✎</span><span><b>Edit code with local LLM</b><small>Update this Python script from a prompt</small></span></button><button data-node-action="edit-codex"><span>⌘</span><span><b>Edit code with Codex</b><small>Run a Codex edit session in terminal</small></span></button><button data-node-action="toggle-include"><span>▶</span><span><b>Include in workflow</b><small>Run this node even when it is unlinked</small></span></button><button data-node-action="link"><span>⛓</span><span><b>Link</b><small>Connect this node to another node</small></span></button><button data-node-action="unlink"><span>⌫</span><span><b>Unlink</b><small>Remove one of this node’s links</small></span></button><button data-node-action="delete" class="danger-action"><span>×</span><span><b>Delete</b><small>Remove this node</small></span></button></div>
+    <div id="sudo-dialog" hidden>
+      <form id="sudo-form">
+        <strong id="sudo-title">Sudo Password Required</strong>
+        <p id="sudo-message">Enter your sudo password to control the local LLM service.</p>
+        <input id="sudo-password" type="password" autocomplete="current-password" />
+        <div><button type="button" id="sudo-cancel">Cancel</button><button type="submit">Authenticate</button></div>
+      </form>
+    </div>
+    <div id="recurring-dialog" hidden>
+      <form id="recurring-form">
+        <strong>Make Recurring</strong>
+        <label>Run schedule<select id="recurring-schedule"><option value="3600">Every hour</option><option value="1800">Every 30 minutes</option><option value="300">Every 5 minutes</option><option value="60">Every 1 minute</option><option value="30">Every 30 seconds</option><option value="15">Every 15 seconds</option><option value="5">Every 5 seconds</option><option value="dailyTime">Specific time</option></select></label>
+        <label id="recurring-time-label">Time<input id="recurring-time" type="time" value="09:00" /></label>
+        <fieldset class="recurring-days"><legend>Days</legend><label><input type="checkbox" value="0" />S</label><label><input type="checkbox" value="1" />M</label><label><input type="checkbox" value="2" />T</label><label><input type="checkbox" value="3" />W</label><label><input type="checkbox" value="4" />T</label><label><input type="checkbox" value="5" />F</label><label><input type="checkbox" value="6" />S</label></fieldset>
+        <div><button type="button" id="recurring-cancel">Cancel</button><button type="submit">Save</button></div>
+      </form>
+    </div>
+    <div id="rename-workflow-dialog" hidden>
+      <form id="rename-workflow-form">
+        <strong>Rename Workflow</strong>
+        <label>Name<input id="rename-workflow-input" autocomplete="off" /></label>
+        <div><button type="button" id="rename-workflow-cancel">Cancel</button><button type="submit">Save</button></div>
+      </form>
+    </div>
+    <div id="script-request-dialog" hidden>
+      <form id="script-request-form">
+        <strong id="script-request-title">Create Script</strong>
+        <textarea id="script-request-input" spellcheck="false" placeholder="Describe the script you want built."></textarea>
+        <div><button type="button" id="script-request-cancel">Cancel</button><button type="submit">Create</button></div>
+      </form>
+    </div>
+    <div id="link-node-menu" hidden><p>LINK TO NODE</p><div id="link-node-list"></div></div>
+    <div id="unlink-node-menu" hidden><p>UNLINK NODE</p><div id="unlink-node-list"></div></div>
+    <template id="node-template"><article class="node"><button class="node-add" title="Add next step or link existing node">＋</button><span class="connection-target" hidden></span><span class="connection-origin" hidden></span><div class="node-title"><span class="status"></span><strong></strong><span class="code-scale"></span><button class="node-menu-button" title="Node menu">⋮</button></div><pre class="node-code-preview"></pre><textarea class="node-input-value" aria-label="User input" spellcheck="false"></textarea><div class="ports inputs"></div><div class="ports outputs"></div><span class="node-resize-handle" title="Resize node"></span></article></template>
+    <script src="/app.js"></script>
+  </body>
+</html>

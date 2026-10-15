@@ -1,0 +1,45 @@
+__pycache__/
+*.py[cod]
+*.log
+logs/
+
+venv/
+.venv/
+.venv-shorts/
+*/venv/
+*/.venv/
+generated-projects/*/venv/
+generated-projects/*/.venv/
+
+# Secrets
+.env
+*/.env
+**/.env
+
+# Model weights and external checkouts
+models/
+external/
+
+# Runtime data created by workflows
+data/artifacts/
+data/runs/
+data/shorts/
+data/kalshi-btc/
+data/*.sqlite3*
+data/*.csv
+data/workflows/*/artifacts/
+data/workflows/*/runs/
+data/workflows/*/inputs/
+data/workflows/*/scripts/
+data/workflows/*/*.bak
+data/workflows/*/.workflow-*.tmp
+data/workflows/.legacy-backups/
+data/products/*
+!data/products/.gitkeep
+workflow-scripts/*/data/
+workflow-scripts/*/logs/
+workflow-scripts/stock-database/data/
+*.egg-info/
+
+.DS_Store
+Thumbs.db

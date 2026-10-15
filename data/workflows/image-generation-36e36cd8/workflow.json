@@ -1,0 +1,284 @@
+{
+  "id": "36e36cd8098e4b61ab325c7a58056aac",
+  "name": "Youtube Shorts",
+  "nodes": [
+    {
+      "id": "c60fb269-d744-4263-8ec7-e18fd48ebc34",
+      "type": "input",
+      "name": "Image Request",
+      "x": 114,
+      "y": 110,
+      "inputs": [],
+      "outputs": [
+        "value"
+      ],
+      "inputValue": "Opening image: BOTH Grandpa AND Grandma must appear together in the same frame. Exactly two elderly adults, both clearly visible from head to feet. Grandpa sits in his armchair on the left. Grandma stands immediately beside him on the right, near the chair, facing partly toward the camera and partly toward the kitchen doorway. She has not started walking yet. A wooden walking cane stands upright against the outside of Grandpa\u2019s chair, within reach of his hand, between the chair and Grandma\u2019s intended path. Show both faces, both people\u2019s feet, the entire cane, and the floor leading to the kitchen. Use a wide enough full-body composition to include BOTH people without cropping either one out. Modest living room, open kitchen doorway in the background, natural daylight, ordinary clothing, realistic photographic style, vertical 9:16 composition. This is the moment BEFORE the cane falls or Grandma trips; both people are upright, with Grandpa seated and Grandma standing."
+    },
+    {
+      "id": "95ee5761-f46f-4594-9a62-f7162f8e4291",
+      "type": "task",
+      "name": "Z-Image-Turbo \u00b7 Portrait",
+      "x": 1266,
+      "y": 289,
+      "inputs": [
+        "prompt"
+      ],
+      "outputs": [
+        "image"
+      ],
+      "code": "\"\"\"Generate a portrait reference frame with local Z-Image-Turbo weights.\"\"\"\nimport argparse\nfrom datetime import datetime, timezone\nimport json\nfrom pathlib import Path\nimport time\n\n\nROOT = Path(__file__).resolve().parents[1]\nMODEL = ROOT / \"models\" / \"Z-Image-Turbo\"\n\n\ndef main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument(\"--prompt\", required=True)\n    parser.add_argument(\"--width\", type=int, default=720)\n    parser.add_argument(\"--height\", type=int, default=1280)\n    parser.add_argument(\"--seed\", type=int, default=42)\n    args = parser.parse_args()\n    if args.width <= 0 or args.height <= 0 or args.width % 16 or args.height % 16:\n        parser.error(\"Image dimensions must be positive multiples of 16.\")\n\n    import torch\n    from diffusers import ZImagePipeline\n\n    if not torch.cuda.is_available():\n        raise RuntimeError(\"Z-Image requires the NVIDIA GPU to be available.\")\n    if not (MODEL / \"model_index.json\").is_file():\n        raise RuntimeError(f\"Z-Image weights have not been installed at {MODEL}.\")\n    # Volta (the installed GPU) needs FP32 for this model's large activation\n    # range; BF16 is used only on hardware with native support.\n    dtype = torch.bfloat16 if torch.cuda.get_device_capability()[0] >= 8 else torch.float32\n    print(f\"Loading Z-Image-Turbo using {dtype}; CPU offloading enabled.\", flush=True)\n    started = time.monotonic()\n    pipe = ZImagePipeline.from_pretrained(str(MODEL), torch_dtype=dtype, local_files_only=True)\n    pipe.enable_model_cpu_offload()\n    pipe.vae.enable_tiling()\n    image = pipe(\n        prompt=args.prompt, width=args.width, height=args.height,\n        num_inference_steps=9, guidance_scale=0.0,\n        generator=torch.Generator(\"cpu\").manual_seed(args.seed),\n    ).images[0]\n    folder = ROOT / \"data\" / \"shorts\"\n    folder.mkdir(parents=True, exist_ok=True)\n    path = folder / (\"z-image-\" + datetime.now(timezone.utc).strftime(\"%Y%m%dT%H%M%S%fZ\") + \".png\")\n    image.save(path)\n    path.with_suffix(\".json\").write_text(json.dumps({\n        \"model\": \"Tongyi-MAI/Z-Image-Turbo\", \"prompt\": args.prompt,\n        \"width\": args.width, \"height\": args.height, \"seed\": args.seed,\n        \"dtype\": str(dtype), \"elapsed_seconds\": round(time.monotonic() - started, 2),\n    }, indent=2) + \"\\n\")\n    print(f\"Saved {path}\", flush=True)\n    print(\"@@WORKFLOW_RESULT@@\" + json.dumps({\"image\": {\"type\": \"image\", \"path\": str(path)}}), flush=True)\n\n\nif __name__ == \"__main__\":\n    main()\n",
+      "task": {
+        "scriptPath": "scripts/z_image_short.py",
+        "workingDirectory": ".",
+        "pythonExecutable": ".venv-shorts/bin/python",
+        "usesDetectedVenv": true,
+        "kind": "image-generation"
+      }
+    },
+    {
+      "id": "1797e3a4-a59b-4ad8-89a8-84c752b9e48c",
+      "type": "output",
+      "name": "Output display",
+      "x": 964,
+      "y": 144,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ],
+      "userSized": true,
+      "userSizedHeight": true,
+      "width": 235,
+      "height": 558
+    },
+    {
+      "id": "60kyif8vq72",
+      "type": "output",
+      "name": "Output display",
+      "x": 1662,
+      "y": 134,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ],
+      "userSized": true,
+      "userSizedHeight": false,
+      "width": 235,
+      "height": 263
+    },
+    {
+      "id": "flquzt3g68n",
+      "type": "task",
+      "name": "LTX Full Model \u00b7 HQ",
+      "x": 2377,
+      "y": 123,
+      "inputs": [
+        "prompt",
+        "reference_image",
+        "duration_seconds"
+      ],
+      "outputs": [
+        "video"
+      ],
+      "code": "\"\"\"Render a Shorts --work-order with the full LTX-2.3 model and HQ pipeline.\"\"\"\nimport argparse\nimport importlib.util\nimport json\nimport os\nfrom pathlib import Path\nimport runpy\nimport sys\nimport time\n\nROOT = Path(__file__).resolve().parents[1]\nLTX_ROOT = Path(os.environ.get('LTX_ROOT') or Path(__file__).resolve().parents[1] / 'external' / 'LTX-2')\nMODEL_DIR = ROOT / 'models' / 'LTX-2.3-HQ'\nCHECKPOINT = MODEL_DIR / 'ltx-2.3-22b-dev.safetensors'\nREFINEMENT = MODEL_DIR / 'ltx-2.3-22b-distilled-lora-384-1.1.safetensors'\nUPSCALER = LTX_ROOT / 'models/ltx-2.3/ltx-2.3-spatial-upscaler-x2-1.1.safetensors'\nGEMMA = LTX_ROOT / 'models/gemma-3-12b'\nWIDTH, HEIGHT, FPS = 768, 1344, 24\n\n\ndef load_work_order(path):\n    # Reuse the existing worker's validated order format and path resolution.\n    spec = importlib.util.spec_from_file_location('shorts_work_order', LTX_ROOT / 'video_generation.py')\n    worker = importlib.util.module_from_spec(spec)\n    sys.modules[spec.name] = worker\n    spec.loader.exec_module(worker)\n    return worker.load_work_order(path)\n\n\ndef hq_arguments(order):\n    return [\n        '--checkpoint-path', str(CHECKPOINT),\n        '--distilled-lora', str(REFINEMENT), '1.0',\n        '--spatial-upsampler-path', str(UPSCALER),\n        '--gemma-root', str(GEMMA),\n        '--prompt', order.prompt,\n        '--negative-prompt', 'subtitles, captions, text overlays, watermarks, distorted anatomy, '\n        'extra limbs, unnatural body movement, flickering, blurry faces',\n        '--seed', str(order.seed), '--width', str(WIDTH), '--height', str(HEIGHT),\n        '--num-frames', str(order.frames), '--frame-rate', str(FPS),\n        '--image', str(order.reference_image), '0', '0.9',\n        '--output-path', str(order.output), '--offload', 'cpu', '--max-batch-size', '1',\n        # Keep the official LTX_2_3_HQ_PARAMS schedule and guidance settings.\n        # No --quantization: use the full BF16 weights rather than FP8 casting.\n    ]\n\n\ndef main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument('--work-order', required=True, type=Path)\n    args = parser.parse_args()\n    order = load_work_order(args.work_order)\n    for path in (CHECKPOINT, REFINEMENT, UPSCALER):\n        if not path.is_file():\n            raise SystemExit(f'Missing HQ model file: {path}')\n    if not GEMMA.is_dir():\n        raise SystemExit(f'Missing text encoder: {GEMMA}')\n    order.output.parent.mkdir(parents=True, exist_ok=True)\n    from video_generation_memory_safe import enable_volta_attention\n    from ltx_pipelines.utils.constants import LTX_2_3_HQ_PARAMS\n    enable_volta_attention()\n    print(f'LTX-2.3 FULL MODEL HQ | BF16 weights | {WIDTH}x{HEIGHT} | '\n          f'{order.frames} frames at {FPS} fps | CPU offload | sequential guidance', flush=True)\n    started = time.monotonic()\n    command_args = hq_arguments(order)\n    sys.argv = ['ltx_pipelines.ti2vid_two_stages_hq', *command_args]\n    runpy.run_module('ltx_pipelines.ti2vid_two_stages_hq', run_name='__main__')\n    if not order.output.is_file() or order.output.stat().st_size == 0:\n        raise RuntimeError('HQ pipeline returned without creating a video.')\n    order.output.with_suffix('.render.json').write_text(json.dumps({\n        'model': CHECKPOINT.name, 'pipeline': 'TI2VidTwoStagesHQPipeline',\n        'precision': 'bf16', 'quantization': None,\n        'hq_sampler_steps': LTX_2_3_HQ_PARAMS.num_inference_steps,\n        'video_cfg': LTX_2_3_HQ_PARAMS.video_guider_params.cfg_scale,\n        'audio_cfg': LTX_2_3_HQ_PARAMS.audio_guider_params.cfg_scale,\n        'width': WIDTH, 'height': HEIGHT, 'fps': FPS, 'frames': order.frames,\n        'prompt': order.prompt, 'seed': order.seed,\n        'elapsed_seconds': round(time.monotonic() - started, 2),\n    }, indent=2) + '\\n')\n    print(f'video is ready: {order.output}', flush=True)\n\n\nif __name__ == '__main__':\n    main()\n",
+      "task": {
+        "scriptPath": "scripts/video_generation_hq.py",
+        "workingDirectory": "external/LTX-2",
+        "pythonExecutable": "external/LTX-2/.venv/bin/python",
+        "usesDetectedVenv": true,
+        "kind": "video-generation"
+      }
+    },
+    {
+      "id": "wlv3yt4guy8",
+      "type": "input",
+      "name": "Video Request",
+      "x": 1958,
+      "y": 125,
+      "inputs": [],
+      "outputs": [
+        "value"
+      ],
+      "inputValue": "An 18-second fictional slapstick comedy in one continuous, fixed, full-body shot. Preserve the two elderly adults, their clothes, the armchair, the cane, and the kitchen from the reference frame. Keep the cane, feet, and floor visible. Actions and dialogue happen in this exact order, with no overlapping speech.\n0\u20134 seconds: As Grandma begins walking toward the kitchen, Grandpa deliberately tips his wooden cane off the side of his chair so it falls across her path. Her foot catches the cane and she trips, landing on the floor in an exaggerated, non-graphic slapstick tumble. Grandpa remains seated. Audible cane clatter and a soft thump; no blood or visible injury.\n4\u20138 seconds: Grandma begins getting back up very slowly and stiffly, with shaky, creaky movements. Grandpa watches her and asks in an elderly male voice, \"Are you okay?\"\n8\u201312 seconds: Still struggling awkwardly to rise, Grandma answers in an elderly female voice, \"Oh yeah, I'm just clumsy.\"\n12\u201318 seconds: Grandpa replies in a gruff, deadpan elderly male voice, \"Good, now go make me a sammich, woman.\" Grandma finishes getting to her feet and turns toward the kitchen. Natural conversational pacing and synchronized lip movement. Quiet room ambience, no music, no narrator, no subtitles, no extra dialogue. Keep each voice assigned to the correct person."
+    },
+    {
+      "id": "gmqxubq49uk",
+      "type": "kill-claudia",
+      "name": "Kill Claudia LLM",
+      "x": 1259,
+      "y": 122,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ],
+      "code": "pkill -f 'llama-server.*qwen3-vl-30b-q4.gguf'",
+      "userSized": true,
+      "userSizedHeight": true,
+      "width": 235,
+      "height": 120
+    },
+    {
+      "id": "fign8460xil",
+      "type": "output",
+      "name": "Output display",
+      "x": 3080,
+      "y": 123,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ]
+    },
+    {
+      "id": "m8s4sedex4p",
+      "type": "agent",
+      "name": "Scene Prompt Writer",
+      "x": 515,
+      "y": 141,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "response"
+      ],
+      "code": "Rewrite the user\u2019s image request as a clear, concise photographic scene description. Preserve the requested people, actions, and setting. Specify readable composition, natural lighting, and realistic anatomy. For a scene that will be animated, keep subjects visible with space to move. Do not invent extra people or unrelated objects. Do not claim a resolution such as 8K, add keyword lists, or use markdown. Return only the image prompt. Preserve every explicitly requested person and prop. If two people are requested, explicitly retain both people in the output and keep both visible in the composition. Preserve the opening moment; do not move the scene forward into a later action.",
+      "agent": {
+        "model": "codex",
+        "endpoint": "",
+        "temperature": 0.35,
+        "builder": "codex",
+        "draft": false,
+        "claudiaDraft": false,
+        "codexDraft": false,
+        "systemPrompt": "Rewrite the user\u2019s image request as a clear, concise photographic scene description. Preserve the requested people, actions, and setting. Specify readable composition, natural lighting, and realistic anatomy. For a scene that will be animated, keep subjects visible with space to move. Do not invent extra people or unrelated objects. Do not claim a resolution such as 8K, add keyword lists, or use markdown. Return only the image prompt. Preserve every explicitly requested person and prop. If two people are requested, explicitly retain both people in the output and keep both visible in the composition. Preserve the opening moment; do not move the scene forward into a later action.",
+        "purpose": "you are an agent that upscales my basic prompt to get ultrarealistic 8k images for exactly what my prompt says",
+        "builtByCodex": true,
+        "projectDir": "generated-projects/are-agent-that-upscales-my-basic-prompt-get-ultrarea"
+      }
+    },
+    {
+      "id": "shorts-export-1080",
+      "type": "task",
+      "name": "Export Short \u00b7 1080\u00d71920",
+      "x": 2730,
+      "y": 123,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "video"
+      ],
+      "code": "\"\"\"Export a generated clip as a 1080x1920 H.264/AAC MP4 for Shorts.\"\"\"\nimport argparse\nimport json\nfrom pathlib import Path\nimport subprocess\n\n\ndef export_short(value):\n    if isinstance(value, dict):\n        value = value.get(\"path\")\n    if not isinstance(value, str) or not value.strip():\n        raise ValueError(\"Connect the generated video to the export node.\")\n    source = Path(value).expanduser().resolve()\n    if not source.is_file():\n        raise ValueError(f\"Video does not exist: {source}\")\n    destination_dir = Path(__file__).resolve().parents[1] / \"data\" / \"shorts\"\n    destination_dir.mkdir(parents=True, exist_ok=True)\n    destination = destination_dir / f\"{source.stem}-1080x1920.mp4\"\n    # Preserve the complete picture, pad other aspect ratios, and preserve audio.\n    # Lanczos resizing is an export resize, not AI detail reconstruction.\n    subprocess.run([\n        \"ffmpeg\", \"-hide_banner\", \"-loglevel\", \"warning\", \"-nostdin\", \"-y\",\n        \"-i\", str(source), \"-map\", \"0:v:0\", \"-map\", \"0:a?\",\n        \"-vf\", \"scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos,\"\n        \"pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1\",\n        \"-c:v\", \"libx264\", \"-preset\", \"medium\", \"-crf\", \"18\",\n        \"-pix_fmt\", \"yuv420p\", \"-c:a\", \"aac\", \"-b:a\", \"192k\",\n        \"-movflags\", \"+faststart\", str(destination),\n    ], check=True)\n    print(f\"video is ready: {destination}\", flush=True)\n    return destination\n\n\nif __name__ == \"__main__\":\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument(\"--input\", required=True, help=\"Video artifact JSON or a video path\")\n    args = parser.parse_args()\n    try:\n        value = json.loads(args.input)\n    except json.JSONDecodeError:\n        value = args.input\n    export_short(value)\n",
+      "task": {
+        "scriptPath": "scripts/export_short.py",
+        "workingDirectory": ".",
+        "pythonExecutable": "venv/bin/python",
+        "usesDetectedVenv": true,
+        "kind": "python-script"
+      }
+    },
+    {
+      "id": "shorts-duration",
+      "type": "input",
+      "name": "Clip duration (seconds)",
+      "x": 2050,
+      "y": 600,
+      "inputs": [],
+      "outputs": [
+        "value"
+      ],
+      "inputValue": "18"
+    }
+  ],
+  "edges": [
+    {
+      "source": "wlv3yt4guy8",
+      "sourceHandle": "value",
+      "target": "flquzt3g68n",
+      "targetHandle": "prompt"
+    },
+    {
+      "source": "1797e3a4-a59b-4ad8-89a8-84c752b9e48c",
+      "sourceHandle": "result",
+      "target": "gmqxubq49uk",
+      "targetHandle": "input"
+    },
+    {
+      "source": "1797e3a4-a59b-4ad8-89a8-84c752b9e48c",
+      "sourceHandle": "result",
+      "target": "95ee5761-f46f-4594-9a62-f7162f8e4291",
+      "targetHandle": "prompt"
+    },
+    {
+      "source": "95ee5761-f46f-4594-9a62-f7162f8e4291",
+      "sourceHandle": "image",
+      "target": "60kyif8vq72",
+      "targetHandle": "input"
+    },
+    {
+      "source": "shorts-export-1080",
+      "sourceHandle": "video",
+      "target": "fign8460xil",
+      "targetHandle": "input"
+    },
+    {
+      "source": "60kyif8vq72",
+      "sourceHandle": "result",
+      "target": "flquzt3g68n",
+      "targetHandle": "reference_image"
+    },
+    {
+      "source": "c60fb269-d744-4263-8ec7-e18fd48ebc34",
+      "sourceHandle": "value",
+      "target": "m8s4sedex4p",
+      "targetHandle": "input"
+    },
+    {
+      "source": "m8s4sedex4p",
+      "sourceHandle": "response",
+      "target": "1797e3a4-a59b-4ad8-89a8-84c752b9e48c",
+      "targetHandle": "input"
+    },
+    {
+      "source": "flquzt3g68n",
+      "sourceHandle": "video",
+      "target": "shorts-export-1080",
+      "targetHandle": "input"
+    },
+    {
+      "source": "shorts-duration",
+      "sourceHandle": "value",
+      "target": "flquzt3g68n",
+      "targetHandle": "duration_seconds"
+    }
+  ],
+  "active": false,
+  "favorite": false,
+  "recurring": {
+    "enabled": false,
+    "frequencySeconds": 300,
+    "scheduleMode": "interval",
+    "timeOfDay": "09:00",
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "displayMode": "verbose",
+    "nextRunAt": null
+  },
+  "storage": {
+    "version": 2,
+    "root": "data/workflows/image-generation-36e36cd8"
+  }
+}

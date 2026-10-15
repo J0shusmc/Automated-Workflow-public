@@ -1,0 +1,9 @@
+{
+  "refresh_lookback_days": 3,
+  "minimum_purchase_usd": 100000,
+  "minimum_ownership_change_pct": 10,
+  "cluster_window_days": 30,
+  "cluster_minimum_insiders": 2,
+  "included_titles": ["officer", "director"],
+  "transaction_code": "P"
+}

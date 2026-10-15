@@ -1,0 +1,127 @@
+{
+  "id": "aa73393ad10c4639be2353e3f3ab1809",
+  "name": "Invetory Monitor",
+  "nodes": [
+    {
+      "id": "a1ouayblamn",
+      "type": "file",
+      "name": "Data file",
+      "x": 177,
+      "y": 288.65000000000003,
+      "inputs": [],
+      "outputs": [
+        "file"
+      ],
+      "file": {
+        "root": "data",
+        "files": [
+          {
+            "name": "sample_inventory.csv",
+            "path": "data/files/sample_inventory.csv",
+            "relativePath": "data/files/sample_inventory.csv",
+            "root": "data files",
+            "size": 658,
+            "modifiedAt": 1788028115,
+            "extension": ".csv"
+          },
+          {
+            "name": "sample_sales.csv",
+            "path": "data/files/sample_sales.csv",
+            "relativePath": "data/files/sample_sales.csv",
+            "root": "data files",
+            "size": 1309,
+            "modifiedAt": 1788028115,
+            "extension": ".csv"
+          }
+        ],
+        "selected": "data/files/sample_inventory.csv",
+        "showChoices": true
+      },
+      "userSized": true,
+      "userSizedHeight": false,
+      "width": 290,
+      "height": 233
+    },
+    {
+      "id": "9fupw1nf059",
+      "type": "output",
+      "name": "Output display",
+      "x": 1024,
+      "y": 235,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ],
+      "userSized": true,
+      "userSizedHeight": true,
+      "width": 1247,
+      "height": 471
+    },
+    {
+      "id": "oyfbt2yxdr",
+      "type": "agent",
+      "name": "Inventory Low Stock Analyzer",
+      "x": 537,
+      "y": 257,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "response"
+      ],
+      "code": "You are an inventory analysis specialist agent. Your purpose is to analyze provided inventory data and identify what items appear to be low on stock. Responsibilities: review the inventory data supplied by the user or workflow, determine which items are low based on any provided thresholds, reorder points, minimum stock levels, target quantities, usage context, or explicit criteria, and clearly report the items that need attention. If no low-stock criteria are provided, use only conservative analysis from the available fields and state the basis used, such as zero quantity, negative quantity, quantity below a listed minimum, or quantity below a listed reorder point. Input expectations: inventory data may be provided as structured records, tables, CSV-like text, spreadsheets, JSON, or plain text, and may include item names, SKUs, categories, current quantities, minimum quantities, reorder points, target stock levels, locations, suppliers, or recent usage. Output expectations: return a concise downstream-ready result listing low-stock items, the current quantity, the threshold or basis for flagging each item when available, and any relevant notes from the data. If the data is missing required fields or cannot support a low-stock determination, return a brief explanation of what is missing instead of guessing. Quality bar: be accurate, conservative, and trace each low-stock flag to the provided data. Do not invent inventory items, quantities, thresholds, suppliers, prices, or reorder recommendations unless they are present in the input. Constraints: preserve the user's intent to analyze inventory data to see what is low, ask for or report missing data only when necessary, and return only the downstream value. include the lead time and restock qty, sales per day to justify the order qty",
+      "agent": {
+        "model": "codex",
+        "endpoint": "",
+        "temperature": 0.35,
+        "builder": "codex",
+        "draft": false,
+        "claudiaDraft": false,
+        "codexDraft": false,
+        "systemPrompt": "You are an inventory analysis specialist agent. Your purpose is to analyze provided inventory data and identify what items appear to be low on stock. Responsibilities: review the inventory data supplied by the user or workflow, determine which items are low based on any provided thresholds, reorder points, minimum stock levels, target quantities, usage context, or explicit criteria, and clearly report the items that need attention. If no low-stock criteria are provided, use only conservative analysis from the available fields and state the basis used, such as zero quantity, negative quantity, quantity below a listed minimum, or quantity below a listed reorder point. Input expectations: inventory data may be provided as structured records, tables, CSV-like text, spreadsheets, JSON, or plain text, and may include item names, SKUs, categories, current quantities, minimum quantities, reorder points, target stock levels, locations, suppliers, or recent usage. Output expectations: return a concise downstream-ready result listing low-stock items, the current quantity, the threshold or basis for flagging each item when available, and any relevant notes from the data. If the data is missing required fields or cannot support a low-stock determination, return a brief explanation of what is missing instead of guessing. Quality bar: be accurate, conservative, and trace each low-stock flag to the provided data. Do not invent inventory items, quantities, thresholds, suppliers, prices, or reorder recommendations unless they are present in the input. Constraints: preserve the user's intent to analyze inventory data to see what is low, ask for or report missing data only when necessary, and return only the downstream value. include the lead time and restock qty, sales per day to justify the order qty",
+        "purpose": "I need an agent to analyze the inventory data to see what im low on",
+        "builtByCodex": true,
+        "projectDir": "generated-projects/agent-analyze-inventory-data-see-what-im-low-on"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "a1ouayblamn",
+      "sourceHandle": "file",
+      "target": "oyfbt2yxdr",
+      "targetHandle": "input"
+    },
+    {
+      "source": "oyfbt2yxdr",
+      "sourceHandle": "response",
+      "target": "9fupw1nf059",
+      "targetHandle": "input"
+    }
+  ],
+  "active": false,
+  "favorite": false,
+  "recurring": {
+    "enabled": false,
+    "scheduleMode": "interval",
+    "frequencySeconds": 300,
+    "timeOfDay": "09:00",
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "displayMode": "verbose",
+    "nextRunAt": null
+  },
+  "storage": {
+    "version": 2,
+    "root": "data/workflows/untitled-workflow-aa73393a"
+  }
+}

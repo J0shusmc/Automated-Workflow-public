@@ -1,0 +1,15 @@
+{
+  "sources": [
+    {"id": "white_house", "kind": "html_links", "url": "https://www.whitehouse.gov/releases/", "link_pattern": "/releases/"},
+    {"id": "commerce", "kind": "html_links", "url": "https://www.commerce.gov/news/press-releases", "link_pattern": "/news/press-releases/"},
+    {"id": "defense_contracts", "kind": "html_links", "url": "https://www.defense.gov/News/Contracts/", "link_pattern": "/News/Contracts/Contract/"},
+    {"id": "doe_nuclear", "kind": "html_links", "url": "https://www.energy.gov/ne/listings/ne-press-releases", "link_pattern": "/ne/articles/"}
+  ],
+  "entity_aliases": {
+    "INTC": ["Intel", "Intel Corporation"],
+    "GLND": ["Greenland Energy", "Greenland Energy Company"]
+  },
+  "tier_1_terms": ["equity stake", "common stock", "strategic investment", "direct funding agreement", "contract award", "awarded a contract"],
+  "tier_2_terms": ["grant", "loan", "procurement", "tariff", "exemption", "export control", "executive order", "permit", "critical minerals", "national security"],
+  "tier_3_terms": ["president trump", "white house", "america first", "domestic manufacturing"]
+}

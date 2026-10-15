@@ -1,0 +1,9 @@
+sku,product,supplier,on_hand,reorder_point,reorder_qty,avg_daily_sales,unit_cost,lead_time_days,last_30_units_sold
+BEAN-HOUSE-12,12 oz House Blend,Roaster Supply Co,22,30,72,3.1,6.25,7,94
+BEAN-ESP-5LB,5 lb Espresso Beans,Roaster Supply Co,9,10,18,0.65,33.00,7,19
+BOTTLE-CB,Cold Brew Bottle,Local Bottling,38,45,120,3.7,2.10,4,111
+CANDLE-CEDAR,Cedar Soy Candle,Wax & Wick Wholesale,14,18,48,1.5,7.50,10,46
+CANDLE-VANILLA,Vanilla Soy Candle,Wax & Wick Wholesale,41,16,24,0.42,7.25,10,13
+MUG-LOGO,Logo Mug,Print House,33,12,24,0.23,6.00,14,7
+TEE-LOGO,Logo T-Shirt,Print House,7,8,24,0.17,11.00,14,5
+STICKER-PACK,Sticker Pack,Print House,90,20,50,0.08,2.75,14,2

@@ -1,0 +1,67 @@
+{
+  "id": "5cc20290aefa44229068ffbf3ef1a7e4",
+  "name": "Database Updater",
+  "nodes": [
+    {
+      "id": "cwq6c8ypxwd",
+      "type": "output",
+      "name": "Output display",
+      "x": 2232,
+      "y": 166,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ],
+      "userSized": true,
+      "userSizedHeight": true,
+      "width": 947,
+      "height": 619
+    },
+    {
+      "id": "q4hw2wiq0ga",
+      "type": "task",
+      "name": "daily_update.py",
+      "x": 423,
+      "y": 148,
+      "inputs": [
+        "input"
+      ],
+      "outputs": [
+        "result"
+      ],
+      "code": "#!/usr/bin/env python3\n\"\"\"Run the daily stock database update and audit.\n\nExamples:\n  python daily_update.py --repair-metadata\n  python daily_update.py --list sp500 --list etfs --download-missing\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport sys\n\nfrom stockdb.daily_update import (\n    audit_database,\n    daily_intervals,\n    print_summary,\n    remove_retired_data,\n    repair_metadata_from_files,\n    update_database,\n)\n\n\ndef parse_args() -> argparse.Namespace:\n    parser = argparse.ArgumentParser(\n        description=\"Update and audit daily stock bars only.\"\n    )\n    parser.add_argument(\n        \"-l\",\n        \"--list\",\n        dest=\"ticker_lists\",\n        action=\"append\",\n        default=[],\n        help=\"Ticker list to ensure exists when --download-missing is used.\",\n    )\n    parser.add_argument(\n        \"--keep-retired\",\n        action=\"store_true\",\n        help=\"Keep known delisted/ticker-changed CSVs instead of removing them before update.\",\n    )\n    parser.add_argument(\n        \"--download-missing\",\n        action=\"store_true\",\n        help=\"Download ticker/list/interval combinations that do not have CSV files yet.\",\n    )\n    parser.add_argument(\n        \"--repair-metadata\",\n        action=\"store_true\",\n        help=\"Rebuild metadata entries from existing CSV files before updating.\",\n    )\n    parser.add_argument(\n        \"--max-stale-days\",\n        type=int,\n        default=5,\n        help=\"Fail audit when the newest bar is older than this many days.\",\n    )\n    parser.add_argument(\n        \"--no-fail-on-stale\",\n        action=\"store_true\",\n        default=True,\n        help=\"Report stale files as warnings instead of errors.\",\n    )\n    parser.add_argument(\n        \"--fail-on-stale\",\n        dest=\"no_fail_on_stale\",\n        action=\"store_false\",\n        help=\"Fail the script when stale files are found.\",\n    )\n    return parser.parse_args()\n\n\ndef main() -> int:\n    args = parse_args()\n    intervals = daily_intervals()\n\n    try:\n        if not args.keep_retired:\n            removed = remove_retired_data(intervals)\n            if removed:\n                print(f\"Removed {len(removed)} retired daily ticker file(s)/metadata entrie(s).\")\n                for item in removed[:25]:\n                    print(f\"  {item['ticker']}/{item['interval']}: {item['reason']}\")\n                if len(removed) > 25:\n                    print(f\"  ... {len(removed) - 25} more removed\")\n\n        if args.repair_metadata:\n            print(\"Repairing metadata from CSV files...\")\n            repair_issues = repair_metadata_from_files(intervals)\n            if repair_issues:\n                print(f\"Metadata repair found {len(repair_issues)} CSV issue(s).\")\n\n        print(\"Updating daily stock bars...\")\n        results = update_database(\n            intervals=intervals,\n            list_names=args.ticker_lists,\n            download_missing=args.download_missing,\n        )\n\n        print(\"\\nAuditing stock database...\")\n        issues = audit_database(\n            intervals=intervals,\n            max_stale_days=args.max_stale_days,\n            fail_on_stale=not args.no_fail_on_stale,\n        )\n    except ValueError as exc:\n        print(f\"ERROR: {exc}\")\n        return 2\n\n    print_summary(results, issues)\n\n    update_errors = [result for result in results if result[\"status\"] == \"error\"]\n    audit_errors = [issue for issue in issues if issue.severity == \"error\"]\n    if update_errors or audit_errors:\n        print(\n            f\"\\nFAILED: {len(update_errors)} update error(s), \"\n            f\"{len(audit_errors)} audit error(s).\"\n        )\n        return 1\n\n    print(\"\\nOK: database update and audit completed.\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+      "task": {
+        "scriptPath": "workflow-scripts/stock-database/daily_update.py",
+        "workingDirectory": "workflow-scripts/stock-database",
+        "pythonExecutable": "workflow-scripts/stock-database/.venv/bin/python",
+        "usesDetectedVenv": true,
+        "kind": "python-script"
+      }
+    }
+  ],
+  "edges": [],
+  "recurring": {
+    "enabled": false,
+    "frequencySeconds": 300,
+    "scheduleMode": "dailyTime",
+    "timeOfDay": "01:25",
+    "weekdays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "nextRunAt": null,
+    "displayMode": "silent"
+  },
+  "favorite": false,
+  "active": true,
+  "storage": {
+    "version": 2,
+    "root": "data/workflows/stock-picker-5cc20290"
+  },
+  "activeOrder": 2
+}

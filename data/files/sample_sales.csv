@@ -1,0 +1,19 @@
+date,customer,category,product,units,unit_price,cost,channel
+2026-07-01,Northside Cafe,Coffee,12 oz House Blend,18,14.00,6.25,in-store
+2026-07-01,Northside Cafe,Coffee,5 lb Espresso Beans,4,68.00,33.00,phone
+2026-07-02,Lakeside Gifts,Candles,Cedar Soy Candle,12,18.00,7.50,in-store
+2026-07-02,Walk-in,Retail,Logo T-Shirt,3,22.00,11.00,in-store
+2026-07-03,Main Street Market,Coffee,12 oz House Blend,24,14.00,6.25,delivery
+2026-07-03,Walk-in,Candles,Vanilla Soy Candle,5,18.00,7.25,in-store
+2026-07-04,Event Booth,Coffee,Cold Brew Bottle,48,5.50,2.10,event
+2026-07-05,Lakeside Gifts,Candles,Cedar Soy Candle,16,18.00,7.50,delivery
+2026-07-06,Walk-in,Retail,Logo Mug,4,16.00,6.00,in-store
+2026-07-06,Northside Cafe,Coffee,5 lb Espresso Beans,5,68.00,33.00,phone
+2026-07-07,Main Street Market,Coffee,Cold Brew Bottle,60,5.50,2.10,delivery
+2026-07-08,Walk-in,Retail,Logo T-Shirt,2,22.00,11.00,in-store
+2026-07-09,Lakeside Gifts,Candles,Vanilla Soy Candle,4,18.00,7.25,in-store
+2026-07-10,Northside Cafe,Coffee,12 oz House Blend,20,14.00,6.25,phone
+2026-07-11,Event Booth,Candles,Cedar Soy Candle,22,18.00,7.50,event
+2026-07-12,Walk-in,Retail,Sticker Pack,2,6.00,2.75,in-store
+2026-07-13,Main Street Market,Coffee,5 lb Espresso Beans,3,68.00,33.00,delivery
+2026-07-14,Walk-in,Retail,Logo Mug,3,16.00,6.00,in-store
